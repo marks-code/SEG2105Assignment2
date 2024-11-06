@@ -60,8 +60,45 @@ public class EchoServer extends AbstractServer
   public void handleMessageFromClient
     (Object msg, ConnectionToClient client)
   {
-    System.out.println("Message received: " + msg + " from " + client);
-    this.sendToAllClients(msg);
+	    String message = msg.toString();
+	    
+	    if (message.startsWith("#login ")) {
+	        String loginID = message.replace("#login ", "").trim();
+	        
+	        if (client.getInfo("loginID") != null) {
+	            try {
+	                client.sendToClient("Error: You are already logged in.");
+	                client.close();
+	            } catch (IOException e) {
+	                serverUI.display("Error closing client connection: " + e.getMessage());
+	            }
+	            return;
+	        }
+	        if (!loginID.isEmpty()) {
+	            client.setInfo("loginID", loginID);
+	            serverUI.display("Log in successful from client: " + loginID);
+	        } else {
+	            try {
+	                client.sendToClient("Error: loginID is required.");
+	                client.close();
+	            } catch (IOException e) {
+	                serverUI.display("Error closing client connection: " + e.getMessage());
+	            }
+	        }
+	    } else {
+	        String clientID = (String) client.getInfo("loginID");
+	        if (clientID == null) {
+	            try {
+	                client.sendToClient("Error: You must log in first.");
+	                client.close();
+	            } catch (IOException e) {
+	                serverUI.display("Error closing client connection: " + e.getMessage());
+	            }
+	            return;
+	        }
+	        serverUI.display("Message received from " + clientID + ": " + message);
+	        sendToAllClients(clientID + ": " + message);
+	    }
   }
     
   /**
