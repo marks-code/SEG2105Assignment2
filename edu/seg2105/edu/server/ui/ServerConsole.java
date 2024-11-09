@@ -39,7 +39,7 @@ public class ServerConsole implements ChatIF {
 	  {
 	    try 
 	    {
-	      server = new EchoServer(port);
+	      server = new EchoServer(port, this);
 	      server.listen();
 	      
 	    } 
@@ -87,6 +87,7 @@ public class ServerConsole implements ChatIF {
 	   *
 	   * @param message The string to be displayed.
 	   */
+	  @Override
 	  public void display(String message) 
 	  {
 	    System.out.println("SERVER MSG> " + message);
