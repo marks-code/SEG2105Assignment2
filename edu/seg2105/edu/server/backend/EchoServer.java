@@ -42,10 +42,12 @@ public class EchoServer extends AbstractServer
    * Constructs an instance of the echo server.
    *
    * @param port The port number to connect on.
+   * @paraam serverUI The serverUI needed for function
    */
-  public EchoServer(int port) 
+  public EchoServer(int port, ChatIF serverUI)  throws IOException
   {
     super(port);
+    this.serverUI = serverUI;
   }
 
   
@@ -60,46 +62,45 @@ public class EchoServer extends AbstractServer
   public void handleMessageFromClient
     (Object msg, ConnectionToClient client)
   {
-	    String message = msg.toString();
-	    
-	    if (message.startsWith("#login ")) {
-	        String loginID = message.replace("#login ", "").trim();
-	        
-	        if (client.getInfo("loginID") != null) {
-	            try {
-	                client.sendToClient("Error: You are already logged in.");
-	                client.close();
-	            } catch (IOException e) {
-	                serverUI.display("Error closing client connection: " + e.getMessage());
-	            }
-	            return;
-	        }
-	        if (!loginID.isEmpty()) {
-	            client.setInfo("loginID", loginID);
-	            serverUI.display("Log in successful from client: " + loginID);
-	        } else {
-	            try {
-	                client.sendToClient("Error: loginID is required.");
-	                client.close();
-	            } catch (IOException e) {
-	                serverUI.display("Error closing client connection: " + e.getMessage());
-	            }
-	        }
-	    } else {
-	        String clientID = (String) client.getInfo("loginID");
-	        if (clientID == null) {
-	            try {
-	                client.sendToClient("Error: You must log in first.");
-	                client.close();
-	            } catch (IOException e) {
-	                serverUI.display("Error closing client connection: " + e.getMessage());
-	            }
-	            return;
-	        }
-	        serverUI.display("Message received from " + clientID + ": " + message);
-	        sendToAllClients(clientID + ": " + message);
-	    }
-  }
+    String message = msg.toString();
+
+    if (message.startsWith("#login")) {
+        String loginId = (String) client.getInfo("loginId");
+
+        if (loginId == null) {
+            String loginID = message.substring(7).trim();
+            client.setInfo("loginId", loginID);
+
+            serverUI.display("Message received: " + message + " from null.");
+            serverUI.display(loginID + " has logged on.");
+            sendToAllClients(loginID + " has logged on.");
+        } else {
+            try {
+                client.sendToClient("SERVER MSG> Error: Already logged in as " + loginId + ".");
+                serverUI.display("Client attempted to re-login. Closing connection.");
+                client.close();
+            } catch (IOException e) {
+                serverUI.display("Error closing connection for re-login attempt.");
+            }
+        }
+    } else {
+        String loginId = (String) client.getInfo("loginId");
+
+        if (loginId != null) {
+            serverUI.display("Message received: " + message + " from " + loginId);
+            this.sendToAllClients(loginId + "> " + message);
+        } else {
+            try {
+                client.sendToClient("SERVER MSG> Error: Please log in before sending messages.");
+                serverUI.display("Unauthorized message attempt from a client without login ID. Closing connection.");
+                client.close();
+            } catch (IOException e) {
+                serverUI.display("Unexpected error closing client connection.");
+            }
+        }
+    }
+}
+
     
   /**
    * This method overrides the one in the superclass.  Called
@@ -128,7 +129,7 @@ public class EchoServer extends AbstractServer
 	 */
   	@Override
 	protected void clientConnected(ConnectionToClient client) {
-		System.out.println(String.format("Client has connected with info: %s", client.toString()));
+		System.out.println(String.format("A new client has connected to the server. ", client.toString()));
 	}
  
 	/**
@@ -149,7 +150,8 @@ public class EchoServer extends AbstractServer
 			handleCommand(message);
 		}
 		else {
-			sendToAllClients(message);
+			serverUI.display(message);
+			sendToAllClients("SERVER MESSAGE> " + message.toString());
 		}
   	}
 
@@ -159,7 +161,7 @@ public class EchoServer extends AbstractServer
   	    	System.exit(0);
   	    } else if (command.equals("#stop")) {
   	        stopListening();
-  	        serverUI.display("Server stopped listening for new clients.");
+  	        serverUI.display("Server stopped listening for connections.");
   	    } else if (command.equals("#close")) {
   	        try {
   	            close();
